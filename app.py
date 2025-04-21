@@ -49,7 +49,6 @@ def localize_and_format_submitted_at(df):
 # === Load Data ===
 
 
-@st.cache_data(show_spinner=True)
 def load_data():
     credentials = service_account.Credentials.from_service_account_info(
         SERVICE_ACCOUNT_INFO,
