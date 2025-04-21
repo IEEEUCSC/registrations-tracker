@@ -9,7 +9,22 @@ import pytz
 
 # === Load environment variables ===
 load_dotenv()
-GOOGLE_CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH")
+
+# Load individual credentials from .env
+SERVICE_ACCOUNT_INFO = {
+    "type": os.getenv("TYPE"),
+    "project_id": os.getenv("PROJECT_ID"),
+    "private_key_id": os.getenv("PRIVATE_KEY_ID"),
+    "private_key": os.getenv("PRIVATE_KEY").replace("\\n", "\n"),
+    "client_email": os.getenv("CLIENT_EMAIL"),
+    "client_id": os.getenv("CLIENT_ID"),
+    "auth_uri": os.getenv("AUTH_URI"),
+    "token_uri": os.getenv("TOKEN_URI"),
+    "auth_provider_x509_cert_url": os.getenv("AUTH_PROVIDER_CERT_URL"),
+    "client_x509_cert_url": os.getenv("CLIENT_CERT_URL"),
+    "universe_domain": os.getenv("UNIVERSE_DOMAIN"),
+}
+
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 RANGE_NAME = os.getenv("RANGE_NAME")
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -22,21 +37,13 @@ st.set_page_config(
 
 def localize_and_format_submitted_at(df):
     if 'Submitted at' in df.columns:
-        # Convert to datetime
         df['Submitted at'] = pd.to_datetime(
             df['Submitted at'], errors='coerce')
-
-        # Localize as UTC first, then convert to Asia/Colombo
         df['Submitted at'] = df['Submitted at'].dt.tz_localize(
             'UTC').dt.tz_convert('Asia/Colombo')
-
-        # Add new column in 12-hour AM/PM format
         df['Submitted at (SLT)'] = df['Submitted at'].dt.strftime(
             '%Y-%m-%d %I:%M:%S %p')
-
-        # Optional: For charting
         df['Cumulative Registrations'] = range(1, len(df) + 1)
-
     return df
 
 # === Load Data ===
@@ -44,8 +51,8 @@ def localize_and_format_submitted_at(df):
 
 @st.cache_data(show_spinner=True)
 def load_data():
-    credentials = service_account.Credentials.from_service_account_file(
-        GOOGLE_CREDENTIALS_PATH,
+    credentials = service_account.Credentials.from_service_account_info(
+        SERVICE_ACCOUNT_INFO,
         scopes=SCOPES
     )
     service = build('sheets', 'v4', credentials=credentials)
@@ -80,7 +87,6 @@ else:
 
     st.metric("🎯 Total Registered Teams", len(df))
 
-    # Timeline Line Chart
     if 'Submitted at' in df.columns:
         st.subheader("📅 Registration Timeline (SL Time)")
         fig, ax = plt.subplots(figsize=(10, 4))
@@ -91,7 +97,6 @@ else:
         ax.grid(True)
         st.pyplot(fig)
 
-    # Team Size Pie Chart
     if 'Number of Team Members' in df.columns:
         st.subheader("👥 Team Size Distribution")
         team_size_counts = df['Number of Team Members'].value_counts()
@@ -101,7 +106,6 @@ else:
         ax2.set_title("Team Sizes")
         st.pyplot(fig2)
 
-    # University Bar Chart
     if 'University' in df.columns:
         st.subheader("🏫 University Participation")
         university_counts = df['University'].value_counts()
